@@ -3,8 +3,11 @@ import { z } from "zod";
 import postgres from "postgres";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { signIn } from '@/auth';
+import { AuthError } from 'next-auth';
 
 const sql = postgres(process.env.DATABASE_URL!, { ssl: "require" });
+
 
 const FormSchema = z.object({
   id: z.string(),
@@ -31,6 +34,9 @@ export type State = {
   };
   message?: string | null;
 };
+
+
+
 
 export async function createInvoice(prevState: State, formData: FormData) {
   const validatedFields = CreateInvoice.safeParse({
@@ -112,4 +118,23 @@ export async function deleteInvoice(id: string) {
     console.log(err);
   }
   revalidatePath("/dashboard/invoices");
+}
+
+export async function authenticate(
+  prevState: string | undefined,
+  formData: FormData,
+) {
+  try {
+    await signIn('credentials', formData);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case 'CredentialsSignin':
+          return 'Invalid credentials.';
+        default:
+          return 'Something went wrong.';
+      }
+    }
+    throw error;
+  }
 }
